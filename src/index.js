@@ -13,7 +13,7 @@ const parser = new xml2js.Parser();
 const parseString = util.promisify(parser.parseString);
 
 async function main() {
-    let data = await fsPromise.readFile(__dirname + '/../resources/resources/親共 vs 真愛港商店地圖 Fri Aug 09 2019 18-12-02 GMT+0800.kml');
+    let data = await fsPromise.readFile(__dirname + '/../resources/親共 vs 真愛港商店地圖 Fri Aug 09 2019 18-12-02 GMT+0800.kml');
     let _document = (await parseString(data)).kml.Document[0];
     const folderNameFilter = (folder) => {
         //親共食店
@@ -45,7 +45,10 @@ async function main() {
 
 function generateFileContent(parsedElement) {
     let [frontMatter, md] = parsedElement;
-    let fileName = `${frontMatter.name}-${Math.random().toString(36).substring(7)}.md`;
+    let long = _.get(frontMatter, "addresses[0].longitude");
+    let lat = _.get(frontMatter, "addresses[0].latitude");
+    let suffix = uuidv4(`${long},${lat}`).toString().substring(0, 7);
+    let fileName = `${frontMatter.name}-${suffix}.md`;
     let fileContent = `---
 ${yaml.dump(frontMatter)}
 ---
@@ -85,7 +88,7 @@ function extractFrontMatter(placeMark) {
         addresses: [],
         tags: [],
         previewImageUrl: "",
-        id: uuidv4(),
+        id: uuidv4().toString(),
     };
     let extendedData = _.get(placeMark, 'ExtendedData[0].Data', []);
     let address = cleanStr(getDataWithAttribute("Location", extendedData));
@@ -124,8 +127,8 @@ function getDataWithAttribute(attributeName, array) {
 function extractPosition(placeMark) {
     let point = _.get(placeMark, "Point[0].coordinates[0]");
     if (point) {
-        let trimmed = point.replace(/\s*/g, "")
-        return _.take(trimmed.split(","), 2)
+        let trimmed = point.replace(/\s*/g, "");
+        return _.take(trimmed.split(","), 2).map(str => Number(str));
     }
     return [];
 }
