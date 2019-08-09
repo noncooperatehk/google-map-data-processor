@@ -6,11 +6,12 @@ import util from 'util';
 import _ from 'lodash';
 import vfile from 'to-vfile';
 import yaml from 'js-yaml';
-import uuidv4 from 'uuid/v4';
+import uuid from 'uuid/v5';
 
 const fsPromise = fs.promises;
 const parser = new xml2js.Parser();
 const parseString = util.promisify(parser.parseString);
+const UUID_NAMESPACE = '6f71954d-ce10-4e11-b072-6c10e8dfa715'
 
 async function main() {
     let data = await fsPromise.readFile(__dirname + '/../resources/親共 vs 真愛港商店地圖 Fri Aug 09 2019 18-12-02 GMT+0800.kml');
@@ -29,7 +30,7 @@ async function main() {
 
     //input xml, output a list of vfiles.
     let folders = _document.Folder.filter(folderNameFilter);
-    let processed = _.flatMap(folders, handleFolder)
+    let processed = _.flatMap(folders, handleFolder);
     console.log(`extracted ${processed.length} elements`);
     let promises = processed
         .map(generateFileContent)
@@ -45,9 +46,7 @@ async function main() {
 
 function generateFileContent(parsedElement) {
     let [frontMatter, md] = parsedElement;
-    let long = _.get(frontMatter, "addresses[0].longitude");
-    let lat = _.get(frontMatter, "addresses[0].latitude");
-    let suffix = uuidv4(`${long},${lat}`).toString().substring(0, 7);
+    let suffix = _.get(frontMatter, "id").substring(0, 7);
     let fileName = `${frontMatter.name}-${suffix}.md`;
     let fileContent = `---
 ${yaml.dump(frontMatter)}
@@ -88,7 +87,7 @@ function extractFrontMatter(placeMark) {
         addresses: [],
         tags: [],
         previewImageUrl: "",
-        id: uuidv4().toString(),
+        id: "",
     };
     let extendedData = _.get(placeMark, 'ExtendedData[0].Data', []);
     let address = cleanStr(getDataWithAttribute("Location", extendedData));
@@ -96,6 +95,7 @@ function extractFrontMatter(placeMark) {
     let group = cleanStr(getDataWithAttribute("Group", extendedData));
     let [longitude, latitude] = extractPosition(placeMark);
     let update = {
+        id: uuid(`${longitude},${latitude}`, UUID_NAMESPACE).toString(),
         name,
         addresses: [
             {
